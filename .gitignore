@@ -111,6 +111,10 @@ env.bak/
 venv.bak/
 .idea
 logs/
+<<<<<<< HEAD
+=======
+raw_quizzes/
+>>>>>>> Hotfix_#1
 api.txt
 
 # Spyder project settings
