@@ -111,6 +111,7 @@ env.bak/
 venv.bak/
 .idea
 logs/
+raw_quizzes/
 api.txt
 
 # Spyder project settings
