@@ -33,12 +33,3 @@ def get_bot_api_token():
         init_logger.debug('Got api')
 
     return api_token
-
-
-def main():
-    init_logger.debug('main() with args:')
-    print('check')
-
-
-if __name__ == '__main__':
-    main()
