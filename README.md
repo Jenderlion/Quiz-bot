@@ -38,3 +38,5 @@ The finished file just needs to be sent to the bot (the name must be unique, if 
 Once added, all polls are hidden - just in case the addition happened by accident or an error was found. To change the display status, use the /quiz vis id True/False command. Oh sure, if you forgot something, you can always type /quiz, /editor, /ban, /unban, /message and /role to the bot to get a hint (assuming you have permissions, of course)
 
 The answer to most questions will be given by the bot itself. By the way, it is distributed only for non-commercial use. If you have any questions, you can always contact me on github or by e-mail.
+
+<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/80x15.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
