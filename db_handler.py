@@ -1,3 +1,5 @@
+import time
+
 import quiz_handler
 from env_vars import load_vars
 import datetime
@@ -137,7 +139,7 @@ class Logs(Base):
     """Create table 'logs'"""
     __tablename__ = 'logs'
     event_id = Column(INTEGER, primary_key=True)  # internal event id
-    event_msg = Column(VARCHAR(64))  # info-message such as "added new user with {params}"
+    event_msg = Column(TEXT)  # info-message such as "added new user with {params}"
     event_initiator = Column(VARCHAR(20))  # initiator such as {internal_user_id} or 'system'
     event_timestamp = Column(TIMESTAMP)  # seconds since the epoch
 
@@ -204,6 +206,52 @@ def convert_to_timedelta(term: str) -> datetime.timedelta:
         time_delta = datetime.timedelta(days=term_numeric)
 
     return time_delta
+
+
+def dict_analytic(input_dict: dict, questions_info: list[QuizQuestions]):
+    """Prepare analytical message"""
+    general_answers_seq = []
+    for answers_dict in input_dict.values():
+        answer_seq = []
+        for answer in answers_dict.values():
+            answer_seq.append(answer)
+        while len(answer_seq) < len(questions_info):
+            answer_seq.append(None)
+        general_answers_seq.append(answer_seq)
+    analytical_list = seq_analytic(general_answers_seq)
+    info_analytical_list = []
+    for index in range(len(analytical_list)):
+        info_string = f'{questions_info[index].quest_text}\nСамый популярный ответ' \
+                      f' ({analytical_list[index][1]}%): {analytical_list[index][0]}'
+        info_analytical_list.append(info_string)
+    return '\n'.join(info_analytical_list)
+
+
+def seq_analytic(input_seq: list[list], output_seq: list or None = None) -> list:
+    """Recursive sequence traversal"""
+    if output_seq is None:
+        output_seq = list()
+    temp_dict = dict()
+    second_seq = list()
+    for user_answers in input_seq:
+        if user_answers[0] not in temp_dict:
+            temp_dict[user_answers[0]] = 1
+        else:
+            temp_dict[user_answers[0]] += 1
+
+    frequent_answer = max(temp_dict, key=temp_dict.get)
+    output_seq.append([frequent_answer, f'{round(temp_dict[frequent_answer] / len(input_seq) * 100, 2)}'])
+
+    for user_answers in input_seq:
+        if len(user_answers) > 0 and user_answers[0] == frequent_answer:
+            second_seq.append(user_answers[1:])
+
+    if len(second_seq[0]) > 0:
+        seq = seq_analytic(second_seq, output_seq)
+    else:
+        seq = output_seq
+
+    return seq
 
 
 # requests
@@ -315,7 +363,7 @@ def get_active_ban_list() -> list[BanList]:
         return result
 
 
-def get_answers(quiz_id, quest_id) -> list[str]:
+def get_answers(quiz_id, quest_id) -> list[QuestionsAnswers]:
     """Return list with answers text
 
     Contains ONLY the text of the answers!!!
@@ -325,7 +373,7 @@ def get_answers(quiz_id, quest_id) -> list[str]:
     :return: list with answers text
     """
     with Session(engine) as answers_session:
-        statement = select(QuestionsAnswers.answer).where(
+        statement = select(QuestionsAnswers).where(
             QuestionsAnswers.quiz_id == quiz_id,
             QuestionsAnswers.quest_id == quest_id
         )
@@ -373,8 +421,8 @@ def get_quiz_answers(quiz_id):
             if questions_info[quest_id - 1].quest_text not in info_dict.keys():
                 info_dict[questions_info[quest_id - 1].quest_text] = dict()
             answers = get_answers(quiz_id, quest_id)
-            for answer in answers:
-                print(f'answer: {answer}')
+            answers_text = [i.answer for i in answers]
+            for answer in answers_text:
                 if answer not in info_dict[questions_info[quest_id - 1].quest_text]:
                     info_dict[questions_info[quest_id - 1].quest_text][answer] = 0
                 info_dict[questions_info[quest_id - 1].quest_text][answer] += 1
@@ -382,6 +430,25 @@ def get_quiz_answers(quiz_id):
             pass
 
     return info_dict
+
+
+def get_analytical_message(quiz_id):
+    with Session(engine) as quiz_answers_session:
+        statement = select(QuestionsAnswers.quest_id).where(QuestionsAnswers.quiz_id == quiz_id)
+        quests_id = frozenset(quiz_answers_session.scalars(statement).all())
+    questions_info: list[QuizQuestions] = get_list_of_questions_in_quiz(quiz_id)
+    analytical_dict = dict()
+
+    for quest_id in quests_id:
+        try:
+            answers = get_answers(quiz_id, quest_id)
+            for answer in answers:
+                if answer.internal_user_id not in analytical_dict:
+                    analytical_dict[answer.internal_user_id] = dict()
+                analytical_dict[answer.internal_user_id][answer.quest_id] = answer.answer
+        except IndexError:
+            pass
+    return dict_analytic(analytical_dict, questions_info)
 
 
 # add-requests
@@ -526,7 +593,6 @@ def add_new_answer(tg_id: int, quiz_id: int, quest_id: int, answer_text: str):
             answer=answer_text
         )
         answer_session.add(new_answer)
-        answer_session.commit()
         add_event_in_log(
             msg := 'Answer from user %s for quiz %s, question %s: %s' %
                    (tg_id, quiz_id, quest_id, answer_text),
@@ -535,6 +601,9 @@ def add_new_answer(tg_id: int, quiz_id: int, quest_id: int, answer_text: str):
             answer_session,
             msg
         )
+        answer_session.flush()
+        time.sleep(0.1)
+        answer_session.commit()
 
 
 # ban & unban

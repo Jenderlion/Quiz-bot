@@ -208,9 +208,6 @@ def send_question(tg_id: int, chat_id: int):
     if len(quiz_questions_list) < current_question_id:
         end_quiz(tg_id, chat_id, current_quiz_id)
     current_question: db_handler.QuizQuestions = quiz_questions_list[current_question_id - 1]
-    print(current_question.quest_relation)
-    print(current_question.quest_id)
-    print(current_question.quest_text)
     if current_question.quest_relation:
         check_quest_id, check_value = current_question.quest_relation.split(' -> ')
         if not db_handler.check_quest_relation(
@@ -537,6 +534,7 @@ def editor_handler(message: telebot.types.Message):
     message_tuple = tuple(message.text.split())
     if len(message_tuple) == 1:
         msg_text = '/quiz - отправляет меню редактора\n' \
+                   '/quiz {id} - отправляет результаты опроса\n' \
                    '/quiz list - отправляет список 10 последних добавленных опросов\n' \
                    '/quiz vis {id} {status} - установить {status} видимости для опроса с {id}'
         simple_send_message(message.chat.id, msg_text, get_editor_inline_markup())
@@ -557,14 +555,25 @@ def editor_handler(message: telebot.types.Message):
             ans = 'ID должен быть числом!'
         simple_send_message(message.chat.id, ans)
     elif message_tuple[1].isdigit():
+        # analytical message
+        analytical_message = db_handler.get_analytical_message(int(message_tuple[1]))
+        file_name_a = 'temp_analytic.txt'
+        with open(file_name_a, 'w', encoding='utf-8') as opened_file:
+            opened_file.write(analytical_message)
+        tg_bot.send_document(message.chat.id, open(file_name_a, 'rb'))
+        # json
         quiz_json = json.dumps(
             db_handler.get_quiz_answers(int(message_tuple[1])), ensure_ascii=False
         )
-        simple_send_message(message.chat.id, quiz_json)
+        file_name_j = 'temp_json.json'
+        with open(file_name_j, 'w', encoding='utf-8') as opened_file:
+            opened_file.write(quiz_json)
+        tg_bot.send_document(message.chat.id, open(file_name_j, 'rb'))
+        # xlsx-table
         json_to_write = pandas.read_json(quiz_json)
-        file_name = 'temp_quiz_info.xlsx'
-        json_to_write.to_excel(file_name)
-        tg_bot.send_document(message.chat.id, open(file_name, 'rb'))
+        file_name_t = 'temp_table.xlsx'
+        json_to_write.to_excel(file_name_t)
+        tg_bot.send_document(message.chat.id, open(file_name_t, 'rb'))
 
 
 @tg_bot.message_handler(content_types='text')
