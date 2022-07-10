@@ -113,7 +113,9 @@ venv.bak/
 logs/
 raw_quizzes/
 api.txt
-temp_quiz_info.xlsx
+temp_analytic.txt
+temp_json.json
+temp_table.xlsx
 
 # Spyder project settings
 .spyderproject
