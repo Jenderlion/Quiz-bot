@@ -240,7 +240,8 @@ def seq_analytic(input_seq: list[list], output_seq: list or None = None) -> list
             temp_dict[user_answers[0]] += 1
 
     frequent_answer = max(temp_dict, key=temp_dict.get)
-    output_seq.append((frequent_answer, round(temp_dict[frequent_answer] / len(input_seq) * 100, 2)))
+    output_seq.append((frequent_answer,
+                       round(temp_dict[frequent_answer] / len(input_seq) * 100, 2)))
 
     for user_answers in input_seq:
         if len(user_answers) > 0 and user_answers[0] == frequent_answer:
@@ -385,7 +386,6 @@ def get_users_id(group: str, mailing: bool = False) -> tuple:
     """Generates a tuple with user ids for subsequent distribution
 
     Recommend using mailing restrictions only for the 'user' group
-
     :param group: target group of users
     :param mailing: whether users with disabled mailing will be added to the tuple
     :return: tuple with ids
