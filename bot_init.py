@@ -8,6 +8,9 @@ import time
 abs_file_path = os.path.abspath(__file__)
 path, filename = os.path.split(abs_file_path)
 
+if 'logs' not in os.listdir():
+    os.mkdir('logs')
+
 logging.basicConfig(
     format='%(asctime)s in %(filename)s(%(lineno)d): %(message)s',
     datefmt='%m/%d/%Y %I:%M:%S %p',
