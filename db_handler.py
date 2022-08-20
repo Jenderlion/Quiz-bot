@@ -1,22 +1,22 @@
-import time
-
-import quiz_handler
-from env_vars import load_vars
 import datetime
 import os
+import time
+
 import sqlalchemy
-from bot_init import init_logger
-from sqlalchemy import VARCHAR
 from sqlalchemy import BOOLEAN
 from sqlalchemy import Column
-from sqlalchemy import INTEGER
 from sqlalchemy import ForeignKey
+from sqlalchemy import INTEGER
 from sqlalchemy import TEXT
 from sqlalchemy import TIMESTAMP
+from sqlalchemy import VARCHAR
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import select
 
+import quiz_handler
+from bot_init import init_logger
+from env_vars import load_vars
 
 # DB info
 
@@ -28,6 +28,7 @@ db_host = os.environ.get('db_host')
 db_port = os.environ.get('db_port')
 db_name = os.environ.get('db_name')
 echo_mode = os.environ.get('echo_mode')
+is_looped = eval(os.environ.get('is_looped'))
 
 # create DB
 engine = sqlalchemy.create_engine(
@@ -542,6 +543,8 @@ def add_new_quiz(input_instance: quiz_handler.PreparedQuiz, tg_id: int) -> str:
                 'New quiz with name %s from user %s' % (input_instance.name, tg_id)
             )
             add_quiz_session.commit()
+    except KeyboardInterrupt:
+        exit('Interrupted')
     except Exception as exc:
         init_logger.error('Exception: %s\n%s' % (type(exc), exc))
         return 'Не получилось добавить опрос %s' % input_instance.name
@@ -565,6 +568,8 @@ def add_new_quiz(input_instance: quiz_handler.PreparedQuiz, tg_id: int) -> str:
                 'Questions for quiz %s from user %s' % (input_instance.name, tg_id)
             )
             add_questions_session.commit()
+    except KeyboardInterrupt:
+        exit('Interrupted')
     except Exception as exc:
         init_logger.error('Exception: %s\n%s' % (type(exc), exc))
         msg = 'Не получилось добавить вопросы к опросу "%s", id %s' % (input_instance.name, quiz_id)
@@ -693,6 +698,8 @@ def rewrite_answer(tg_id: int, quiz_id: int, quest_id: int, answer_text: str):
             user_answer_update_session.commit()
         update_user_quiz_status(tg_id, None)
         return True
+    except KeyboardInterrupt:
+        exit('Interrupted')
     except Exception as exc:
         init_logger.error('Exception: %s\n%s' % (type(exc), exc))
         return False

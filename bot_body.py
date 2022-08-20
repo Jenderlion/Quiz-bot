@@ -1,19 +1,21 @@
+import datetime
+import functools
+import json
+import logging
+import threading
+import time
+
+import pandas
+import telebot
+from telebot.types import InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup
+from telebot.types import ReplyKeyboardMarkup
+
+import bot_init
 import db_handler
 import quiz_handler
-import datetime
-import logging
-import telebot
-import json
-import pandas
-import openpyxl  # for correct pandas work
-from telebot.types import ReplyKeyboardMarkup
-from telebot.types import InlineKeyboardMarkup
-from telebot.types import InlineKeyboardButton
-import time
 from bot_init import init_logger
-import bot_init
-import functools
-import threading
+from db_handler import is_looped
 
 
 # set new StreamHandler with level DEBUG by default
@@ -30,7 +32,7 @@ tg_bot = telebot.TeleBot(bot_init.get_bot_api_token())
 min_time_delta = 2
 
 
-# wrappers
+# region wrappers
 def message_wrapper(func):
     """Decorator that writes messages to logs"""
 
@@ -171,9 +173,10 @@ def rule_wrapper(rules):
         return wrapper
 
     return decorator
+# endregion
 
 
-# general functions
+# region general functions
 def end_quiz(tg_id, chat_id, quiz_id):
     """Initiates completion of the quiz"""
     gratitude_message = db_handler.get_end_message(quiz_id)
@@ -343,9 +346,11 @@ def mailing(users_id: tuple or list, msg_text):
     """
     for user_id in users_id:
         simple_send_message(user_id, msg_text, get_welcome_markup())
+# endregion
 
 
-# message handlers
+# region message handlers
+# region commands
 @tg_bot.message_handler(commands=['start'])
 # Decorator cannot be used because the user must be added first
 def welcome_handler(message: telebot.types.Message):
@@ -359,11 +364,11 @@ def welcome_handler(message: telebot.types.Message):
           f'Правила пользования следующие:\n' \
           f'1. Будьте вежливы и не пытайтесь меня сломать — у меня тоже есть чувства.\n' \
           f'2. Внимательно читайте вопросы и ответы, ведь исправить их можно только в последнем' \
-          f' пройденном опросе!' \
+          f' пройденном опросе!\n' \
           f'3. Я всё ещё нахожусь в состоянии разработки. Если вы нашли баг, пожалуйста, введите' \
-          f' команду /help и воспользуйтесь соответствующим пунктом меню.' \
+          f' команду /help и воспользуйтесь соответствующим пунктом меню.\n' \
           f'4. Если Вы начали проходить опрос, то его необходимо закончить, прежде чем перейти к' \
-          f' другому функционалу.' \
+          f' другому функционалу.\n' \
           f'5. Не отправляйте сообщения чаще, чем раз в {min_time_delta} секунд.\n\n' \
           f'Особенное правило - в любой непонятной ситуации пишите /help'
     simple_send_message(message.chat.id, msg, get_welcome_markup())
@@ -513,6 +518,8 @@ def unban_handler(message: telebot.types.Message):
             try:
                 simple_send_message(int(command_seq[1]), ' '.join(command_seq[2:]))
                 simple_send_message(message.chat.id, 'Сообщение отправлено!')
+            except KeyboardInterrupt:
+                exit('Interrupted')
             except Exception as exc:
                 simple_send_message(message.chat.id, f'Exception!\n{type(exc)}\n{exc}')
         elif command_seq[1] in ('user', 'editor', 'm_admin', 'admin'):
@@ -574,8 +581,10 @@ def editor_handler(message: telebot.types.Message):
         file_name_t = 'temp_table.xlsx'
         json_to_write.to_excel(file_name_t)
         tg_bot.send_document(message.chat.id, open(file_name_t, 'rb'))
+# endregion
 
 
+# region types
 @tg_bot.message_handler(content_types='text')
 @rule_wrapper(('user', 'editor', 'admin', 'm_admin'))
 @message_wrapper
@@ -718,24 +727,31 @@ def document_handler(message: telebot.types.Message):
         if answer[1]:
             answer_msg = quiz_handler.new_quiz_handler(file_name, message.from_user.id)
             simple_send_message(message.chat.id, answer_msg, None)
+# endregion
+# endregion
 
 
 def main():
     """Main loop"""
-    while True:
-        # tg_bot.polling(none_stop=True, timeout=1)
+    if is_looped:
+        while True:
+            try:
+                tg_bot.polling(none_stop=True, timeout=1)
 
-        try:
-            tg_bot.polling(none_stop=True, timeout=1)
+            except KeyboardInterrupt:
+                exit('Interrupted by CTRL+C')
 
-        except Exception as Exc_txt:
-
-            init_logger.error(f'Type: {type(Exc_txt)}, text: {Exc_txt}')
-            time.sleep(2)
+            except Exception as Exc_txt:
+                init_logger.error(f'Type: {type(Exc_txt)}, text: {Exc_txt}')
+                time.sleep(2)
+    else:
+        tg_bot.polling(none_stop=True, timeout=1)
 
 
 if __name__ == '__main__':
-    main_thread = threading.Thread(target=main)
     unban_thread = threading.Thread(target=auto_unban, daemon=True)
-    main_thread.start()
     unban_thread.start()
+    bot_thread = threading.Thread(target=main, daemon=True)
+    bot_thread.start()
+    while True:
+        time.sleep(1000)
