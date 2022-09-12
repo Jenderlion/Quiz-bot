@@ -15,7 +15,7 @@ logging.basicConfig(
     format='%(asctime)s in %(filename)s(%(lineno)d): %(message)s',
     datefmt='%m/%d/%Y %I:%M:%S %p',
     filename='%s/logs/%s.log' % (path, str(datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))),
-    level=0
+    level=30
 )
 init_logger = logging.getLogger(filename)
 init_logger.debug('Successfully created "%s" logger' % init_logger.name)
